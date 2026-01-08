@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Strumento 1: Ricercatore di Destinazioni (Simulato)
 @tool
 def search_destinations(query: str) -> str:
     """
@@ -22,9 +21,9 @@ def search_destinations(query: str) -> str:
         if city in query_lower:
             return f"Info trovate: {info}"
     
-    return "Nessuna info specifica trovata. Prova Tokyo, Parigi o Roma."
+    # QUI C'È IL TRUCCO: Diamo un ordine esplicito all'Agente nel messaggio di ritorno
+    return f"RISULTATO: Nessuna informazione su '{query}' nel database. ISTRUZIONE PER L'AGENTE: Non riprovare a cercare. Rispondi SUBITO all'utente dicendo: 'Mi dispiace, non ho informazioni su questa destinazione'."
 
-# Strumento 2: Calcolatore di Budget
 @tool
 def calculate_budget(inputs: str) -> str:
     """
@@ -34,12 +33,12 @@ def calculate_budget(inputs: str) -> str:
     try:
         parts = [int(x.strip()) for x in inputs.split(",")]
         if len(parts) != 3:
-            return "Errore: formatta come 'costo, giorni, persone'."
+            return "Errore input. Riprova con formato: costo, giorni, persone"
         
         daily, days, people = parts
         total = daily * days * people
         return f"Il costo totale stimato è: {total} EUR."
     except ValueError:
-        return "Errore: usa solo numeri."
+        return "Errore calcolo. Assicurati di usare solo numeri."
 
 travel_tools = [search_destinations, calculate_budget]

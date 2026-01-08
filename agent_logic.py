@@ -9,15 +9,12 @@ from tools_definition import travel_tools
 load_dotenv()
 
 def build_agent():
-    # IL VINCITORE DELLA SCANSIONE
     model_name = "gemini-flash-lite-latest"
-    
-    print(f"--- Inizializzazione Agente con: {model_name} ---")
     
     llm = ChatGoogleGenerativeAI(
         model=model_name, 
         temperature=0,
-        max_retries=1 # Se fallisce, stop. Non sprechiamo quota.
+        max_retries=1
     )
 
     memory = ConversationBufferMemory(
@@ -25,33 +22,39 @@ def build_agent():
         return_messages=True
     )
 
-    # Prompt ottimizzato per il modello "Lite" (istruzioni più semplici e dirette)
     template = """
-    Sei un assistente di viaggio.
+    Sei un assistente automatico che esegue comandi precisi.
     
-    OBIETTIVO: Rispondere alla domanda dell'utente usando i tool se necessario.
-    
-    STRUMENTI A DISPOSIZIONE:
+    STRUMENTI:
     {tools}
     
     NOMI STRUMENTI:
     {tool_names}
     
-    ISTRUZIONI:
-    1. Se hai bisogno di calcolare prezzi, usa calculate_budget.
-    2. Se hai bisogno di info su una città, usa search_destinations.
-    3. IMPORTANTE: Una volta usato il tool, dai SUBITO la "Final Answer".
+    PROTOCOLLO DI SICUREZZA (DA RISPETTARE SEMPRE):
+    1. NON chiamare mai lo stesso tool due volte con lo stesso input.
+    2. Se l'Osservazione (Observation) contiene "Nessuna informazione" o "ISTRUZIONE PER L'AGENTE", DEVI FERMARTI IMMEDIATAMENTE.
+    3. La tua prossima mossa DEVE essere "Final Answer" copiando il messaggio di errore.
     
-    FORMATO (Usa esattamente questo):
+    FORMATO RIGIDO:
     Question: la domanda
-    Thought: devo usare un tool? (si/no)
-    Action: nome_tool (o None)
-    Action Input: input_tool
-    Observation: risultato_tool
-    Thought: ho l'info, rispondo.
-    Final Answer: la risposta finale.
+    Thought: Cosa devo fare?
+    Action: {tool_names} (o None)
+    Action Input: input
+    Observation: risultato
+    Thought: Ho finito? Se l'osservazione è negativa, dico di no.
+    Final Answer: Risposta finale.
 
-    Inizia ora:
+    ESEMPIO DI ARRESTO:
+    Question: Londra
+    Thought: Cerco Londra
+    Action: search_destinations
+    Action Input: Londra
+    Observation: RISULTATO: Nessuna informazione...
+    Thought: Il tool ha fallito. Mi fermo.
+    Final Answer: Non ho informazioni su Londra.
+
+    Inizia il task:
     
     Question: {input}
     {chat_history}
@@ -67,7 +70,8 @@ def build_agent():
         tools=travel_tools, 
         verbose=True, 
         memory=memory,
-        handle_parsing_errors=True,
-        max_iterations=3,      # Pochi passaggi per il modello Lite
-        max_execution_time=30
+        # Se l'agente impazzisce e sbaglia formato, gli forziamo questa risposta invece di riprovare
+        handle_parsing_errors="Ho avuto un problema tecnico, ma la risposta è: controlla i dati inseriti o prova un'altra destinazione.",
+        max_iterations=3, 
+        max_execution_time=15 # Timeout cortissimo: se non rispondi in 15 secondi, ti stacco.
     )
